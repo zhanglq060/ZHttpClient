@@ -114,9 +114,11 @@ public class ZHttpClient {
 
 	public RequestHandle get(Context context, String url, RequestParams params, ResponseHandlerInterface listener){
 		if(url == null || url.length() == 0){
-			throw new RuntimeException("url is empty");
+			throw new IllegalArgumentException("url is empty");
 		}else if(!url.startsWith("http")){
-			throw new RuntimeException("the url "+url+", is not http or https");
+			throw new IllegalArgumentException("the url "+url+", is not http or https");
+		}else if(listener == null){
+			throw new IllegalArgumentException("ResponseHandler must not be null");
 		}
 		HttpURLConnection connection = null;
 		try {
@@ -170,7 +172,10 @@ public class ZHttpClient {
 			throw new RuntimeException("url is empty");
 		}else if(!url.startsWith("http")){
 			throw new RuntimeException("the url "+url+", is not http or https");
+		}else if(listener == null){
+			throw new IllegalArgumentException("ResponseHandler must not be null");
 		}
+
 		HttpURLConnection connection = null;
 		try {
 			if (params != null){

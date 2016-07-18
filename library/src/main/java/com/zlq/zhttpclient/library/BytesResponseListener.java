@@ -11,14 +11,4 @@ public abstract class BytesResponseListener extends ResponseHandlerImp {
 
 	public abstract void onFailure(int responseCode, byte[] responseContent, Throwable throwable);
 
-
-	@Override
-	protected void onHandleSuccess(int responseCode, byte[] responseContent) {
-		onSuccess(responseCode, responseContent);
-	}
-
-	@Override
-	protected void onHandleFailure(int responseCode, byte[] responseContent, Throwable throwable) {
-		onFailure(responseCode, responseContent, throwable);
-	}
 }

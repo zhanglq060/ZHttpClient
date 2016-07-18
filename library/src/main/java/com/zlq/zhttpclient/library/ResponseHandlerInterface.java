@@ -1,5 +1,9 @@
 package com.zlq.zhttpclient.library;
 
+
+import java.io.IOException;
+import java.io.InputStream;
+
 /**
  * Created by zhanglq on 15/5/31.
  */
@@ -13,9 +17,11 @@ public interface ResponseHandlerInterface {
 
 	void sendCancelMessage();
 
-	void sendSuccessMessage(int statusCode, byte[] responseBody);
+	void sendResponseMessage(int responseCode, int contentLength, InputStream inputStream) throws IOException;
 
-	void sendFailureMessage(int statusCode, byte[] responseBody, Throwable error);
+	void sendSuccessMessage(int responseCode, byte[] responseBody);
+
+	void sendFailureMessage(int responseCode, byte[] responseBody, Throwable error);
 
 	void setUseSynchronousMode(boolean useSynchronousMode);
 

@@ -3,10 +3,10 @@ package com.zlq.zhttpclient.library;
 import android.content.Context;
 import android.util.Log;
 
-import java.io.ByteArrayInputStream;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.io.InputStream;
 
 /**
  * Created by zhanglq on 15/5/31.
@@ -26,31 +26,15 @@ public abstract class FileResponseListener extends ResponseHandlerImp {
 		this.mFile = file;
 	}
 
-	/**
-	 * Obtains new FileAsyncHttpResponseHandler against context with target being temporary file
-	 *
-	 * @param context Context, must not be null
-	 */
 	public FileResponseListener(Context context) {
 		super();
 		this.mFile = getTemporaryFile(context);
 	}
 
-	/**
-	 * Attempts to delete file with stored response
-	 *
-	 * @return false if the file does not exist or is null, true if it was successfully deleted
-	 */
 	public boolean deleteTargetFile() {
 		return getTargetFile() != null && getTargetFile().delete();
 	}
 
-	/**
-	 * Used when there is no file to be used when calling constructor
-	 *
-	 * @param context Context, must not be null
-	 * @return temporary file or null if creating file failed
-	 */
 	protected File getTemporaryFile(Context context) {
 		assert (context != null);
 		try {
@@ -72,41 +56,31 @@ public abstract class FileResponseListener extends ResponseHandlerImp {
 	}
 
 	@Override
-	protected void onHandleSuccess(int responseCode, byte[] responseContent) {
-		ByteArrayInputStream instream = new ByteArrayInputStream(responseContent);
-		FileOutputStream buffer = null;
-		Throwable throwable = null;
-		try {
-			buffer = new FileOutputStream(getTargetFile());
-			byte[] tmp = new byte[1024];
-			int l, count = 0;
-			// do not send messages if request has been cancelled
-			while ((l = instream.read(tmp)) != -1 && !Thread.currentThread().isInterrupted()) {
-				count += l;
-				buffer.write(tmp, 0, l);
-			}
-			buffer.flush();
-		}catch (Exception e){
-			e.printStackTrace();
-			throwable = e;
-		}finally {
-			try {
-				buffer.close();
-			} catch (IOException e) {
-				e.printStackTrace();
-				throwable = e;
-			}
+	byte[] getResponseData(int contentLength, InputStream inputStream) throws IOException {
+		FileOutputStream buffer = new FileOutputStream(getTargetFile());
+		buffer = new FileOutputStream(getTargetFile());
+		byte[] tmp = new byte[1024];
+		int l, currentLen = 0;
+		// do not send messages if request has been cancelled
+		while ((l = inputStream.read(tmp)) != -1 && !Thread.currentThread().isInterrupted()) {
+			currentLen += l;
+			buffer.write(tmp, 0, l);
+			sendProgressMessage((int)((float)currentLen/(float)contentLength * 100f));
 		}
-		if(getTargetFile() != null && getTargetFile().exists()){
-			onSuccess(responseCode, getTargetFile());
-		}else{
-			onFailure(responseCode, null, throwable);
-		}
+		buffer.flush();
+		buffer.close();
+		inputStream.close();
 
+		return null;
 	}
 
 	@Override
-	protected void onHandleFailure(int responseCode, byte[] responseContent, Throwable throwable) {
-		onFailure(responseCode, null, throwable);
+	public void onSuccess(int responseCode, byte[] responseContent) {
+		onSuccess(responseCode, getTargetFile());
+	}
+
+	@Override
+	public void onFailure(int responseCode, byte[] responseContent, Throwable throwable) {
+		onFailure(responseCode, getTargetFile(), throwable);
 	}
 }

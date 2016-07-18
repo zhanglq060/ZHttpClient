@@ -17,7 +17,7 @@ public abstract class TextResponseListener extends ResponseHandlerImp {
 
 
 	@Override
-	protected void onHandleSuccess(int responseCode, byte[] responseContent) {
+	public void onSuccess(int responseCode, byte[] responseContent) {
 		String responseText = null;
 		try {
 			responseText = responseContent == null ? null : new String(responseContent, getCharset());
@@ -29,7 +29,7 @@ public abstract class TextResponseListener extends ResponseHandlerImp {
 	}
 
 	@Override
-	protected void onHandleFailure(int responseCode, byte[] responseContent, Throwable throwable) {
+	public void onFailure(int responseCode, byte[] responseContent, Throwable throwable) {
 		String responseText = null;
 		try {
 			responseText = responseContent == null ? null : new String(responseContent, getCharset());

@@ -5,6 +5,13 @@ import android.os.Looper;
 import android.os.Message;
 import android.util.Log;
 
+import java.io.BufferedInputStream;
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.PushbackInputStream;
+import java.util.zip.GZIPInputStream;
+
 /**
  * Created by zhanglq on 15/5/31.
  */
@@ -29,8 +36,9 @@ public abstract class ResponseHandlerImp implements ResponseHandlerInterface{
 		setUseSynchronousMode(false);
 	}
 
-	protected abstract void onHandleSuccess(int responseCode, byte[] responseContent);
-	protected abstract void onHandleFailure(int responseCode, byte[] responseContent, Throwable throwable);
+	public abstract void onSuccess(int responseCode, byte[] responseContent);
+
+	public abstract void onFailure(int responseCode, byte[] responseContent, Throwable throwable);
 
 	public void onProgress(int progressPercent){
 
@@ -123,6 +131,46 @@ public abstract class ResponseHandlerImp implements ResponseHandlerInterface{
 		return this.useSynchronousMode;
 	}
 
+	@Override
+	public void sendResponseMessage(int responseCode, int contentLength, InputStream inputStream) throws IOException {
+		byte[] responseContent = getResponseData(contentLength, getInputSteam(inputStream));
+		if (!Thread.currentThread().isInterrupted()) {
+			if (responseCode >= 300) {
+				sendFailureMessage(responseCode, responseContent, null);
+			} else {
+				sendSuccessMessage(responseCode, responseContent);
+			}
+		}
+	}
+
+	byte[] getResponseData(int contentLength, InputStream inputStream) throws IOException {
+		ByteArrayOutputStream outputStream = null;
+		BufferedInputStream bufferedInputStream = null;
+		try {
+			bufferedInputStream = new BufferedInputStream(inputStream);
+			outputStream = new ByteArrayOutputStream(1024);
+			byte[] buffer = new byte[1024];
+			int len = 0;
+			int currentLen = 0;
+			while ((len = bufferedInputStream.read(buffer)) != -1){
+				currentLen += len;
+				outputStream.write(buffer, 0, len);
+				sendProgressMessage((int)((float)currentLen/(float)contentLength * 100f));
+			}
+			return outputStream.toByteArray();
+		}catch (IOException e) {
+			throw(e);
+		}finally {
+			try {
+				bufferedInputStream.close();
+				outputStream.close();
+			} catch (IOException e) {
+				e.printStackTrace();
+				throw(e);
+			}
+		}
+	}
+
 	protected void handleMessage(Message message) {
 		Object[] response;
 
@@ -130,15 +178,15 @@ public abstract class ResponseHandlerImp implements ResponseHandlerInterface{
 			case SUCCESS_MESSAGE:
 				response = (Object[]) message.obj;
 				if (response != null && response.length >= 2) {
-					onHandleSuccess((Integer) response[0], (byte[]) response[1]);
+					onSuccess((Integer) response[0], (byte[]) response[1]);
 				} else {
-					Log.e(TAG,"SUCCESS_MESSAGE didn't got enough params");
+					Log.e(TAG,"FAILURE_MESSAGE didn't got enough params");
 				}
 				break;
 			case FAILURE_MESSAGE:
 				response = (Object[]) message.obj;
 				if (response != null && response.length >= 3) {
-					onHandleFailure((Integer) response[0], (byte[]) response[1], (Throwable) response[2]);
+					onFailure((Integer) response[0], (byte[]) response[1], (Throwable) response[2]);
 				} else {
 					Log.e(TAG,"FAILURE_MESSAGE didn't got enough params");
 				}
@@ -195,5 +243,27 @@ public abstract class ResponseHandlerImp implements ResponseHandlerInterface{
 			msg = Message.obtain(mHandler, responseMessageId, responseMessageData);
 		}
 		return msg;
+	}
+
+	protected InputStream getInputSteam(InputStream inputStream) throws IOException {
+		PushbackInputStream pushbackStream = new PushbackInputStream(inputStream, 2);
+		GZIPInputStream gzippedStream = null;
+		if (isInputStreamGZIPCompressed(pushbackStream)) {
+			gzippedStream = new GZIPInputStream(pushbackStream);
+			return gzippedStream;
+		} else {
+			return pushbackStream;
+		}
+	}
+
+	private boolean isInputStreamGZIPCompressed(final PushbackInputStream inputStream) throws IOException {
+		if (inputStream == null)
+			return false;
+
+		byte[] signature = new byte[2];
+		int readStatus = inputStream.read(signature);
+		inputStream.unread(signature);
+		int streamHeader = ((int) signature[0] & 0xff) | ((signature[1] << 8) & 0xff00);
+		return readStatus == 2 && GZIPInputStream.GZIP_MAGIC == streamHeader;
 	}
 }
