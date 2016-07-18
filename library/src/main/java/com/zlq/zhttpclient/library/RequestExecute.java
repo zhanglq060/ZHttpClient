@@ -15,7 +15,7 @@ import java.util.zip.GZIPInputStream;
 /**
  * Created by zhanglq on 15/5/31.
  */
-public class RequestExecute implements Runnable{
+public class RequestExecute implements Runnable {
 
 	public static final String TAG = "RequestExecute";
 

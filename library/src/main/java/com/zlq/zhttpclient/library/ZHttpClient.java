@@ -61,6 +61,11 @@ public class ZHttpClient {
 		this.httpsPort = httpsPort;
 		requestMap = new HashMap<Context, List<RequestHandle>>();
 		clientHeaderMap = new HashMap<String, String>();
+
+		//default content_encoding is gzip
+		setHeader(HEADER_CONTENT_ENCODING, ENCODING_GZIP);
+		setHeader(HEADER_CONTENT_ENCODING, ENCODING_GZIP);
+
 		threadPool = getDefaultThreadPool();
 	}
 
@@ -74,9 +79,6 @@ public class ZHttpClient {
 			Map.Entry<String,String> entry = (Map.Entry<String, String>) iterator.next();
 			connection.setRequestProperty(entry.getKey(), entry.getValue());
 		}
-		//default content_encoding is gzip
-		connection.setRequestProperty(HEADER_CONTENT_ENCODING, ENCODING_GZIP);//ENCODING_UTF8
-		connection.setRequestProperty(HEADER_ACCEPT_ENCODING, ENCODING_GZIP);//ENCODING_UTF8
 
 		if(connection instanceof HttpsURLConnection && mSSLSocketFactory != null){
 			((HttpsURLConnection)connection).setSSLSocketFactory(mSSLSocketFactory);
@@ -171,6 +173,10 @@ public class ZHttpClient {
 		}
 		HttpURLConnection connection = null;
 		try {
+			if (params != null){
+				setHeader(RequestParams.CONTENT_TYPE, RequestParams.MULTIPART_FROM_DATA + ";boundary=" + params.getBoundary());
+			}
+
 			connection = initUrlConnection(url);
 			connection.setDoInput(true);
 			connection.setDoOutput(true);

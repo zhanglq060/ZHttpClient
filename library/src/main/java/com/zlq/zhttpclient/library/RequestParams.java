@@ -16,14 +16,31 @@ import java.util.concurrent.ConcurrentHashMap;
  */
 public class RequestParams {
 
+	public static final String CONTENT_TYPE = "Content-Type";
 	public static final String ENCODING = "UTF-8";
 	public static final String CONTENT_TYPE_JSON = "application/json";
+
+	private String boundary;
+	public static String MULTIPART_FROM_DATA = "multipart/form-data";
+	public static String PREFIX = "--";
+	public static String NEWLINE = "\r\n";
 
 	private boolean isContentTypeJson = false;
 
 	private ConcurrentHashMap<String, String> stringParams = new ConcurrentHashMap<String, String>();
 	private ConcurrentHashMap<String, Byte[]> byteParams = new ConcurrentHashMap<String, Byte[]>();
 	private ConcurrentHashMap<String, File> fileParams = new ConcurrentHashMap<String, File>();
+
+	public RequestParams(){
+		boundary = java.util.UUID.randomUUID().toString();
+	}
+
+	public String getBoundary(){
+		if (boundary == null || boundary.length() == 0){
+			boundary = java.util.UUID.randomUUID().toString();
+		}
+		return boundary;
+	}
 
 	public void put(String key, int value){
 		stringParams.put(key, value+"");
@@ -46,7 +63,35 @@ public class RequestParams {
 
 	@Override
 	public String toString(){
-		return null;
+		StringBuilder result = new StringBuilder();
+		for (ConcurrentHashMap.Entry<String, String> entry : stringParams.entrySet()) {
+			if (result.length() > 0)
+				result.append("&");
+
+			result.append(entry.getKey());
+			result.append("=");
+			result.append(entry.getValue());
+		}
+
+		for (ConcurrentHashMap.Entry<String, Byte[]> entry : byteParams.entrySet()) {
+			if (result.length() > 0)
+				result.append("&");
+
+			result.append(entry.getKey());
+			result.append("=");
+			result.append("STREAM");
+		}
+
+		for (ConcurrentHashMap.Entry<String, File> entry : fileParams.entrySet()) {
+			if (result.length() > 0)
+				result.append("&");
+
+			result.append(entry.getKey());
+			result.append("=");
+			result.append("FILE");
+		}
+
+		return result.toString();
 	}
 
 	public String getParams(boolean urlencoding){
@@ -89,26 +134,27 @@ public class RequestParams {
 	}
 
 	public void preparePostParams(URLConnection connection) throws IOException {
-		String BOUNDARY = java.util.UUID.randomUUID().toString();
-		String MULTIPART_FROM_DATA = "multipart/form-data";
-		String PREFIX = "--";
-		String NEWLINE = "\r\n";
+
 		ConcurrentHashMap<String, String> stringParams = getPostStringParams();//text
 		ConcurrentHashMap<String, Byte[]> byteParams = getByteParams();//byte
 		ConcurrentHashMap<String, File> fileParams = getFileParams();//file
-
-		if(byteParams.size() > 0 || fileParams.size() > 0){
-			connection.setRequestProperty("Content-Type", MULTIPART_FROM_DATA + ";boundary=" + BOUNDARY);
-		}else if(isContentTypeJson){
-			connection.setRequestProperty("Content-Type", CONTENT_TYPE_JSON+";charset="+ENCODING);
-		}
 
 		DataOutputStream outputStream = new DataOutputStream(connection.getOutputStream());
 
 		//text
 		if(stringParams != null && stringParams.size() > 0){
-			String stringParamsText = isContentTypeJson ? getJsonParams() : getParams(false);
-			outputStream.write(stringParamsText.getBytes());
+			StringBuilder stringParamsText = new StringBuilder();
+			for (Map.Entry<String, String> entry : stringParams.entrySet()) {
+				stringParamsText.append(PREFIX);
+				stringParamsText.append(getBoundary());
+				stringParamsText.append(NEWLINE);
+				stringParamsText.append("Content-Disposition: form-data; name=\""
+						+ entry.getKey() + "\"" + NEWLINE);
+				stringParamsText.append(NEWLINE);
+				stringParamsText.append(entry.getValue());
+				stringParamsText.append(NEWLINE);
+			}
+			outputStream.write(stringParamsText.toString().getBytes());
 			outputStream.flush();
 		}
 
@@ -119,7 +165,7 @@ public class RequestParams {
 				Map.Entry<String, byte[]> entry = (Map.Entry<String, byte[]>) iterator.next();
 				StringBuilder byteparamsText = new StringBuilder();
 				byteparamsText.append(PREFIX);
-				byteparamsText.append(BOUNDARY);
+				byteparamsText.append(getBoundary());
 				byteparamsText.append(NEWLINE);
 				byteparamsText.append("Content-Disposition: form-data; name=\""
 						+ entry.getKey() + "\"; filename=\""
@@ -147,11 +193,11 @@ public class RequestParams {
 				Map.Entry<String, File> entry = (Map.Entry<String, File>) iterator.next();
 				StringBuilder fileparamsText = new StringBuilder();
 				fileparamsText.append(PREFIX);
-				fileparamsText.append(BOUNDARY);
+				fileparamsText.append(getBoundary());
 				fileparamsText.append(NEWLINE);
 				fileparamsText.append("Content-Disposition: form-data; name=\""
 						+ entry.getKey() + "\"; filename=\""
-						+ entry.getValue() + "\"" + NEWLINE);
+						+ entry.getValue().getName() + "\"" + NEWLINE);
 				fileparamsText.append("Content-Type: application/octet-stream" + NEWLINE);
 				fileparamsText.append(NEWLINE);
 				outputStream.write(fileparamsText.toString().getBytes());
@@ -170,7 +216,7 @@ public class RequestParams {
 
 		if(fileParams.size() > 0 || byteParams.size() > 0){
 			//请求结束标志
-			byte[] end_data = (PREFIX + BOUNDARY + PREFIX + NEWLINE).getBytes();
+			byte[] end_data = (PREFIX + getBoundary() + PREFIX + NEWLINE).getBytes();
 			outputStream.write(end_data);
 		}
 		outputStream.close();

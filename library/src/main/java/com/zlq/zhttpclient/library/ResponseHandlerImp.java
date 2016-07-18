@@ -106,7 +106,7 @@ public abstract class ResponseHandlerImp implements ResponseHandlerInterface{
 		useSynchronousMode = value;
 	}
 
-	private static class ResponderHandler extends Handler{
+	private static class ResponderHandler extends Handler {
 		private ResponseHandlerImp mResponseHandlerImp;
 		public ResponderHandler(ResponseHandlerImp imp){
 			mResponseHandlerImp = imp;
