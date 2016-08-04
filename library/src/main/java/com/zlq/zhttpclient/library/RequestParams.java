@@ -19,9 +19,9 @@ public class RequestParams {
 	public static final String CONTENT_TYPE = "Content-Type";
 	public static final String ENCODING = "UTF-8";
 	public static final String CONTENT_TYPE_JSON = "application/json";
+	public static final String CONTENT_TYPE_MULTIPART_FORM_DATA = "multipart/form-data";
 
 	private String boundary;
-	public static String MULTIPART_FROM_DATA = "multipart/form-data";
 	public static String PREFIX = "--";
 	public static String NEWLINE = "\r\n";
 
@@ -59,6 +59,10 @@ public class RequestParams {
 
 	public void setContentTypeJson(boolean isJson){
 		this.isContentTypeJson = isJson;
+	}
+
+	public boolean isContentTypeJson(){
+		return isContentTypeJson;
 	}
 
 	@Override
@@ -116,7 +120,9 @@ public class RequestParams {
 			string += "'" + e.getKey() + "':";
 			string += "'" + e.getValue() + "',";
 		}
-		string = string.substring(0, string.lastIndexOf(","));
+		if (stringParams.size() > 0){
+			string = string.substring(0, string.lastIndexOf(","));
+		}
 		string += "}";
 		return string;
 	}
@@ -140,6 +146,14 @@ public class RequestParams {
 		ConcurrentHashMap<String, File> fileParams = getFileParams();//file
 
 		DataOutputStream outputStream = new DataOutputStream(connection.getOutputStream());
+
+		//请求数据 以 json 格式发送
+		if (isContentTypeJson()){
+			outputStream.write(getJsonParams().getBytes());
+			outputStream.flush();
+			outputStream.close();
+			return;
+		}
 
 		//text
 		if(stringParams != null && stringParams.size() > 0){
@@ -219,6 +233,7 @@ public class RequestParams {
 			byte[] end_data = (PREFIX + getBoundary() + PREFIX + NEWLINE).getBytes();
 			outputStream.write(end_data);
 		}
+		outputStream.flush();
 		outputStream.close();
 	}
 }

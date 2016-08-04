@@ -1,8 +1,6 @@
 package com.zlq.zhttpclient;
 
 import android.content.Context;
-import android.os.Environment;
-import android.provider.SyncStateContract;
 
 import com.zlq.zhttpclient.library.FileResponseListener;
 import com.zlq.zhttpclient.library.RequestHandle;
@@ -11,7 +9,6 @@ import com.zlq.zhttpclient.library.TextResponseListener;
 import com.zlq.zhttpclient.library.ZHttpClient;
 
 import java.io.File;
-import java.io.IOException;
 
 /**
  * Created by zhanglq on 16/6/14.

@@ -4,7 +4,9 @@ import android.os.Process;
 import android.util.Log;
 
 import java.io.IOException;
+import java.net.CookieManager;
 import java.net.HttpURLConnection;
+import java.net.URI;
 import java.net.UnknownHostException;
 
 /**
@@ -21,6 +23,7 @@ public class RequestExecute implements Runnable {
 	private HttpURLConnection connection;
 	private ResponseHandlerInterface mResponseHandler;
 	private RequestParams mRequestParams;
+	private CookieManager mCookieManager;
 	private int retryCount = 0;
 	private boolean isCancle = false;
 	public boolean isFinish = false;
@@ -29,6 +32,10 @@ public class RequestExecute implements Runnable {
 		this.connection = connection;
 		this.mResponseHandler = responseHandler;
 		this.mRequestParams = params;
+	}
+
+	public void setCookieManager(CookieManager cookieManager){
+		this.mCookieManager = cookieManager;
 	}
 
 	@Override
@@ -58,10 +65,13 @@ public class RequestExecute implements Runnable {
 		}
 		mResponseHandler.sendFinishMessage();
 		isFinish = true;
-		connection.disconnect();
+		if(connection != null){
+			connection.disconnect();
+		}
 	}
 
 	private void makeRequestAndRetry() throws IOException {
+		retryCount = 0;
 		boolean retry = true;
 		IOException cause = null;
 		RetryHandler retryHandler = new RetryHandler(DEFAULT_MAX_RETRIES, DEFAULT_RETRY_SLEEP_TIME_MILLIS);
@@ -94,12 +104,16 @@ public class RequestExecute implements Runnable {
 
 	private void makeRequest() throws IOException {
 
-		int responseCode = -1;
 		if(connection.getRequestMethod().equals(RequestMethod.POST)){
 			mRequestParams.preparePostParams(connection);
 		}
-		responseCode = connection.getResponseCode();
 
+		int responseCode = -1;
+		responseCode = connection.getResponseCode();
+		//cookie
+		if (mCookieManager != null){
+			mCookieManager.put(URI.create(connection.getURL().getHost()), connection.getHeaderFields());
+		}
 		mResponseHandler.sendResponseMessage(responseCode, connection.getContentLength(), connection.getInputStream());
 	}
 
